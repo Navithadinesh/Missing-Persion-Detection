@@ -1,0 +1,49 @@
+import cv2, pickle
+import numpy as np
+
+VIDEO_PATH = "videoplayback.mp4"
+
+# Load face cascade
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+with open("known_faces.pkl", "rb") as f:
+    known_encodings, known_names = pickle.load(f)
+
+video = cv2.VideoCapture(VIDEO_PATH)
+
+while True:
+    ret, frame = video.read()
+    if not ret: break
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+
+    for (x, y, w, h) in faces:
+        # Create encoding for detected face
+        h_img, w_img = frame.shape[:2]
+        face_encoding = [x/w_img, y/h_img, w/w_img, h/h_img]
+        
+        # Simple matching based on face position and size
+        best_match = None
+        min_distance = float('inf')
+        
+        for i, known_enc in enumerate(known_encodings):
+            distance = np.linalg.norm(np.array(face_encoding) - np.array(known_enc))
+            if distance < min_distance:
+                min_distance = distance
+                best_match = i
+        
+        # If match found (within tolerance)
+        if min_distance < 0.3:  # Adjust tolerance as needed
+            name = known_names[best_match]
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            cv2.putText(frame, name, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+        else:
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
+            cv2.putText(frame, "Unknown", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+
+    cv2.imshow("Video", frame)
+    if cv2.waitKey(1) & 0xFF == ord("q"): break
+
+video.release()
+cv2.destroyAllWindows()
