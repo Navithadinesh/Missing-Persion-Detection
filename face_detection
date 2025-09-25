@@ -1,0 +1,43 @@
+import cv2, os, pickle
+import numpy as np
+
+# Load OpenCV's face detection classifier
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+known_encodings = []
+known_names = []
+
+for file in os.listdir("missing_db_pic"):
+    path = os.path.join("missing_db_pic", file)
+    
+    # Read image
+    image = cv2.imread(path)
+    if image is None:
+        print(f"Could not read image: {path}")
+        continue
+        
+    # Convert to grayscale for face detection
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+    # Detect faces
+    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+    
+    if len(faces) > 0:
+        # Get the first (largest) face
+        x, y, w, h = faces[0]
+        
+        # Create a simple encoding based on face position and size
+        # This is a simplified approach - for better recognition, you'd need face embeddings
+        h_img, w_img = image.shape[:2]
+        face_encoding = [x/w_img, y/h_img, w/w_img, h/h_img]
+        
+        known_encodings.append(face_encoding)
+        known_names.append(os.path.splitext(file)[0])
+        print(f"Processed: {file} - Face found at ({x}, {y}, {w}, {h})")
+    else:
+        print(f"No face found in: {file}")
+
+with open("known_faces.pkl", "wb") as f:
+    pickle.dump((known_encodings, known_names), f)
+
+print(f"Encodings saved for {len(known_names)} faces using OpenCV.")
